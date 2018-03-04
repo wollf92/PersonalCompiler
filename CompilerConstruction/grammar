@@ -1,0 +1,49 @@
+SPL		= VarDecls FunDecls
+VarDecls	= VarDecl*
+Fundecls	= FunDecl*
+VarDecl 	= VarDeclType 'id' '=' Expr ';'
+VarDeclType = 'var' | Type
+FunDecl 	= id '(' FArgs ')' '::' InputTypes '->' RetType Body
+FArgs 		= [id (‘,’ id)*]
+InputTypes	= Type*
+RetType	= ‘Void’ | Type
+Type 		= 'Int'
+			| 'Bool'
+			| 'Char'
+			| ListType
+			| TupleType
+			|  id
+ListType	= '[' Type ']'
+TupleType	= '(' Type ',' Type ')'
+Body		= ‘{‘ VarDecls Stmts [ReturnStmt] ‘}’
+Stmts		= Stmt*
+Stmt		= IfStmt
+			|  WhileStmt
+			|  AssignStmt
+			|  FunCallStmt
+IfStmt		= ‘if’ ‘(‘ Expr ‘)’ Body [ ‘else’ Body] 
+WhileStmt	= ‘while’ ‘(‘ Expr ‘)’ Body
+AssignStmt	= IdAccess ‘=’ Expr ‘;’
+FunCallStmt	= Funcall ‘;’
+ReturnStmt	= ‘return’ [Expr] ‘;’
+FunCall		= id ‘(‘ ActArgs ‘)’
+ActArgs		= [Expr (‘,’ Expr)*]
+Expr 		= Expr1 [':' Expr]
+Expr1		= Expr2 ('||' Expr2)*
+Expr2		= Expr3 ('&&' Expr3)*
+Expr3		= Expr4 (('!='|'==') Expr4)*
+Expr4 		= Expr5 (('<='|'<'|'>'| '>=') Expr5)*
+Expr5		= Expr6 (('+'|'-') Expr6)*
+Expr6		= Expr7 (('*'|'%'|'/') Expr7)*
+Expr7		= ('!'|'-' Expr7) | Expr8
+Expr8		= AccessExpr
+		| ValueExpr
+		| '(' Expr ')'
+AccessExpr 	= Funcall
+			| IdAccess
+IdAccess 	= id('.'('tl'|'hd'|'snd'|'fst))*
+ValueExpr	= int
+			| char
+			| bool
+			| '(' Expr ',' Expr ')'
+			| '[]' 

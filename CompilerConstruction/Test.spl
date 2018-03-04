@@ -1,0 +1,14 @@
+[Int] x = 3 * 5 : 4 + 4 : [];
+Int a = 3;
+Int b = 4;
+Int c = 4;
+Int x = True;
+main()::->Void{
+	Bool t = True;
+}
+
+foo(x,y)::Int Int -> Bool{
+	return x == y;
+}
+
+/* hello darkness my old friend */
