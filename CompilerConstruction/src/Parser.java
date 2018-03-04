@@ -4,6 +4,7 @@ import static java.util.Optional.of;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import Tokenizer.GrammarToken;
 import Tokenizer.Token;
@@ -12,12 +13,11 @@ import parser.node.BodyNode;
 import parser.node.ExprNode;
 import parser.node.FArgsNode;
 import parser.node.FunDeclNode;
-import parser.node.FunDeclsNode;
 import parser.node.IDNode;
 import parser.node.IfStmtNode;
-import parser.node.InputTypesNode;
 import parser.node.ListTypeNode;
 import parser.node.MultiNode;
+import parser.node.Node;
 import parser.node.ReturnStmtNode;
 import parser.node.RootNode;
 import parser.node.SPLNode;
@@ -26,7 +26,6 @@ import parser.node.StmtNode;
 import parser.node.TupleTypeNode;
 import parser.node.TypeNode;
 import parser.node.VarDeclNode;
-import parser.node.VarDeclsNode;
 import parser.node.WhileStmtNode;
 public class Parser{
 	private int pointer;
@@ -106,18 +105,19 @@ public class Parser{
 		try {
 			Token idToken 				= eat(TokenType.ID).get();
 			Token roundO 					= eat(TokenType.ROUNDBRACKETOPEN).orElseThrow(()->parserException("("));
-			FArgsNode fargs 			= parseFArgs().get();
+			MultiNode<IDNode> fargsM = oneOrMoreParse("FARGS", ()->new IDNode(eat(TokenType.ID).get()));
 			Token roundC 					= eat(TokenType.ROUNDBRACKETCLOSE).get();
 			Token doubleC 				= eat(TokenType.DOUBLECOLON).get();
-			InputTypesNode input 	= parseInputTypes().get();
+			MultiNode<TypeNode> input = oneOrMoreParse("INPUT", ()->parseType().get());	//SHOULD BE MORE SPECIFIC
 			Token arrow 					= eat(TokenType.ARROW).get();
 			TypeNode retType 			= parseRetType().get();
 			BodyNode body 				= parseBody().get();
-			return of(new FunDeclNode(new IDNode(idToken), fargs, input, retType, body));
+			return of(new FunDeclNode(new IDNode(idToken), fargsM, input, retType, body));
 		} catch(Exception e) {pointer = temp;}
 		return empty();
 	}
-	
+
+
 	private Optional<FArgsNode> parseFArgs(){
 		int temp = pointer;
 		FArgsNode fargs = new FArgsNode();
@@ -274,6 +274,15 @@ public class Parser{
 	private Optional<ExprNode> parseExprNode(){
 		// TODO Auto-generated method stub
 		return null;
+	}
+	
+	private <T extends Node> MultiNode<T> oneOrMoreParse(String string, Supplier<T> sups){
+		MultiNode<T> toReturn = new MultiNode<T>(new Token(TokenType.MULTI, string));
+		try {
+			T sup = sups.get();
+			toReturn.add(sup);
+		} catch (Exception e) {}
+		return toReturn;
 	}
 	
 	private Optional<GrammarToken> eat(TokenType... type){
