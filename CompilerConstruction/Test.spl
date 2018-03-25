@@ -3,12 +3,39 @@ Int a = 3;
 Int b = 4;
 Int c = 4;
 Int x = True;
+
+// Print an integer list
+printIntList(list) :: [Int] -> Void
+{
+    while(!isEmpty(list))
+    {
+        print(list.hd);
+        list = list.tl;
+    }
+}
+
+/* Reverse a list */
+reverse (list) :: [Int] -> [Int] {
+    [Int] accu = [];
+    while (!isEmpty(list)) {
+        accu = list.hd : accu;
+        list = list.tl;
+    }
+    return accu;
+}
+
+/* The main function of this code */
 main()::->Void{
 	Bool t = True;
 }
 
+// Just some test function
 foo(x,y)::Int Int -> Bool{
 	return x == y;
 }
 
-/* hello darkness my old friend */
+
+
+
+
+

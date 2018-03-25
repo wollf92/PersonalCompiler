@@ -9,9 +9,11 @@ import java.util.function.Supplier;
 import Tokenizer.GrammarToken;
 import Tokenizer.Token;
 import Tokenizer.TokenType;
+import parser.node.AssignStmtNode;
+import parser.node.BinaryOperatorNode;
 import parser.node.BodyNode;
-import parser.node.ExprNode;
-import parser.node.FArgsNode;
+import parser.node.FunCallNode;
+import parser.node.FunCallStmtNode;
 import parser.node.FunDeclNode;
 import parser.node.IDNode;
 import parser.node.IfStmtNode;
@@ -19,12 +21,13 @@ import parser.node.ListTypeNode;
 import parser.node.MultiNode;
 import parser.node.Node;
 import parser.node.ReturnStmtNode;
-import parser.node.RootNode;
 import parser.node.SPLNode;
 import parser.node.SingleTypeNode;
 import parser.node.StmtNode;
 import parser.node.TupleTypeNode;
 import parser.node.TypeNode;
+import parser.node.UnaryOperatorNode;
+import parser.node.ValueNode;
 import parser.node.VarDeclNode;
 import parser.node.WhileStmtNode;
 public class Parser{
@@ -36,53 +39,25 @@ public class Parser{
 		this.tokens = tokens;
 	}
 	
-	public Optional<RootNode> parseTree(){
-		int temp = pointer;
-		try {
-			SPLNode spl = parseSpl().get();
-			return of(new RootNode(spl));
-		} catch (Exception e) {pointer = temp;}
-		return empty();
-	}
-	
 	public Optional<SPLNode> parseSpl(){
 		int temp = pointer;
 		try {
-			MultiNode<VarDeclNode> vardecls = parseVarDecls();
-			MultiNode<FunDeclNode> fundecls = parseFunDecls();
+			MultiNode<VarDeclNode> vardecls = zeroOrMoreParse("VARDECLS", ()->parseVarDecl().get());
+			MultiNode<FunDeclNode> fundecls = zeroOrMoreParse("FUNDECLS", ()->parseFunDecl().get());
 			return of(new SPLNode(vardecls, fundecls));
 		} catch (Exception e) {pointer = temp;}
 		return empty();
-	}
-	//TODO: temp = pointer werkt niet voor (a)*
-	private MultiNode<VarDeclNode> parseVarDecls(){
-		int temp = pointer;
-		MultiNode<VarDeclNode> varDeclsNode = new MultiNode<VarDeclNode>(Token.VARDECLS);
-		try {
-			for(Optional<VarDeclNode> var = parseVarDecl(); var.isPresent(); var = parseVarDecl()) 
-				varDeclsNode.add(var.get());
-		} catch (Exception e) {pointer = temp;}
-		return varDeclsNode;
-	}
-	
-	private MultiNode<FunDeclNode> parseFunDecls(){
-		int temp = pointer;
-		MultiNode<FunDeclNode> funDeclsNode = new MultiNode<FunDeclNode>(Token.FUNDECLS);
-		try {
-			for(Optional<FunDeclNode> var = parseFunDecl(); var.isPresent(); var = parseFunDecl()) 
-				funDeclsNode.add(var.get());
-		} catch (Exception e) {pointer = temp;}
-		return funDeclsNode;
 	}
 
 	private Optional<VarDeclNode> parseVarDecl(){
 		int temp = pointer;
 		try {
-			TypeNode varDeclType = parseVarDeclType().get();
-			Token idToken =	eat(TokenType.ID).get();
-			Token assign = eat(TokenType.ASSIGNMENT).get();
-			ExprNode expr = parseExprNode().get();
-			return of(new VarDeclNode(varDeclType, new IDNode(idToken), expr));
+			TypeNode varDeclType 	= parseVarDeclType().get();
+			Token idToken 				=	eat(TokenType.ID).get();
+			Token assign 					= eat(TokenType.ASSIGNMENT).orElseThrow(()->parserException("="));
+			TypeNode expr 				= parseExpr().get();
+			Token semiColon				= eat(TokenType.SEMICOLON).orElseThrow(()->parserException(";"));
+			return of(new VarDeclNode(idToken, varDeclType, expr));
 		} catch (Exception e) {pointer = temp;}
 		return empty();
 	}
@@ -103,36 +78,19 @@ public class Parser{
 	private Optional<FunDeclNode> parseFunDecl(){
 		int temp = pointer;
 		try {
-			Token idToken 				= eat(TokenType.ID).get();
-			Token roundO 					= eat(TokenType.ROUNDBRACKETOPEN).orElseThrow(()->parserException("("));
-			MultiNode<IDNode> fargsM = oneOrMoreParse("FARGS", ()->new IDNode(eat(TokenType.ID).get()));
-			Token roundC 					= eat(TokenType.ROUNDBRACKETCLOSE).get();
-			Token doubleC 				= eat(TokenType.DOUBLECOLON).get();
-			MultiNode<TypeNode> input = oneOrMoreParse("INPUT", ()->parseType().get());	//SHOULD BE MORE SPECIFIC
-			Token arrow 					= eat(TokenType.ARROW).get();
-			TypeNode retType 			= parseRetType().get();
-			BodyNode body 				= parseBody().get();
-			return of(new FunDeclNode(new IDNode(idToken), fargsM, input, retType, body));
+			Token idToken 						= eat(TokenType.ID).get();
+			Token roundO 							= eat(TokenType.ROUNDBRACKETOPEN)		.orElseThrow(()->parserException("("));
+			MultiNode<IDNode> fargsM 	= zeroOrMoreParse("FARGS" , ()->new IDNode(eat(TokenType.ID).get()), ()->eat(TokenType.COMMA));
+			Token roundC 							= eat(TokenType.ROUNDBRACKETCLOSE)	.orElseThrow(()->parserException(")"));
+			Token doubleC 						= eat(TokenType.DOUBLECOLON)				.orElseThrow(()->parserException(":"));
+			MultiNode<TypeNode> input = zeroOrMoreParse("INPUT", ()->parseType().get());
+			Token arrow 							= eat(TokenType.ARROW)							.orElseThrow(()->parserException("->"));
+			TypeNode retType 					= parseRetType()										.orElseThrow(()->parserException("return type"));
+			BodyNode body 						= parseBody()												.orElseThrow(()->parserException("body"));
+			return of(new FunDeclNode(idToken, fargsM, input, retType, body));
 		} catch(Exception e) {pointer = temp;}
 		return empty();
 	}
-
-
-	private Optional<FArgsNode> parseFArgs(){
-		int temp = pointer;
-		FArgsNode fargs = new FArgsNode();
-		try {
-			fargs.add(new IDNode(eat(TokenType.ID).get()));
-		} catch (Exception e) { pointer = temp;}
-		return of(fargs);
-	}
-	
-	private Optional<InputTypesNode> parseInputTypes(){
-		InputTypesNode itn = new InputTypesNode();
-		//TODO logic here
-		return of(itn);
-	}
-	
 	
 	private Optional<TypeNode> parseRetType(){
 		int temp = pointer;
@@ -192,20 +150,13 @@ public class Parser{
 		int temp = pointer;
 		try {
 			Token curlyO = eat(TokenType.CURLYBRACKETOPEN).get();
-			MultiNode<VarDeclNode> vardecls = parseVarDecls();
-			MultiNode<StmtNode> stmts = parseStmts();
+			MultiNode<VarDeclNode> vardecls = zeroOrMoreParse("VARDECLS", ()->parseVarDecl().get());
+			MultiNode<StmtNode> stmts = zeroOrMoreParse("STATEMENTS", ()->parseStmt().get());
 			Optional<ReturnStmtNode> returnStmt = parseReturnStmt();
 			Token curlyC = eat(TokenType.CURLYBRACKETCLOSE).get();
-			return returnStmt.isPresent() ? of(new BodyNode(vardecls, stmts, returnStmt.get())) : of(new BodyNode(vardecls, stmts));
+			return of(new BodyNode(vardecls, stmts, returnStmt));
 		} catch(Exception e) {pointer = temp;}
 		return empty();
-	}
-
-	private MultiNode<StmtNode> parseStmts(){
-		MultiNode<StmtNode> stmts = new MultiNode<>(Token.STATEMENTS);
-		for(Optional<StmtNode> o = parseStmt(); o.isPresent(); o = parseStmt())
-			stmts.add(o.get());
-		return stmts;
 	}
 	
 	private Optional<StmtNode> parseStmt(){
@@ -219,6 +170,9 @@ public class Parser{
 		try {
 			return of(parseAssignStmt().get());
 		} catch (Exception e) {pointer = temp;}
+		try {
+			return of(parseFunCallStmt().get());
+		} catch (Exception e) {pointer = temp;}
 		return empty();
 	}
 
@@ -227,11 +181,11 @@ public class Parser{
 		try {
 			Token ifToken = eat(TokenType.IF).get();
 			Token roundO = eat(TokenType.ROUNDBRACKETOPEN).get();
-			ExprNode expr = parseExpr().get();
+			TypeNode expr = parseExpr().get();
 			Token roundC = eat(TokenType.ROUNDBRACKETCLOSE).get();
 			BodyNode body = parseBody().get();
 			Optional<BodyNode> body2 = eat(TokenType.ELSE).isPresent() ? of(parseBody().get()) : empty();
-			return body2.isPresent() ? of(new IfStmtNode(ifToken, expr, body, body2.get())) : of(new IfStmtNode(ifToken, expr, body));
+			return of(new IfStmtNode(ifToken, expr, body, body2));
 		} catch(Exception e) { pointer = temp;}
 		return empty();
 	}
@@ -242,7 +196,7 @@ public class Parser{
 		try {
 			Token whileToken = eat(TokenType.WHILE).get();
 			Token roundO = eat(TokenType.ROUNDBRACKETOPEN).get();
-			ExprNode expr = parseExpr().get();
+			TypeNode expr = parseExpr().get();
 			Token roundC = eat(TokenType.ROUNDBRACKETCLOSE).get();
 			BodyNode body = parseBody().get();
 			return of(new WhileStmtNode(whileToken, expr, body));
@@ -253,43 +207,187 @@ public class Parser{
 	private Optional<AssignStmtNode> parseAssignStmt(){
 		int temp = pointer;
 		try {
-			TypedNode access = parseAccess().get();
-			
-		}
+			Token id = eat(TokenType.ID).get();
+			Token assign = eat(TokenType.ASSIGNMENT).get();
+			TypeNode expr = parseExpr().get();
+			Token semi = eat(TokenType.SEMICOLON).get();
+			return of(new AssignStmtNode(assign, new IDNode(id), expr));
+		} catch(Exception e) {pointer = temp;}
+		return empty();
 	}
 	
-	
-	private Optional<ExprNode> parseExpr(){
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	private Optional<ReturnStmtNode> parseReturnStmt(){
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-
-
-	private Optional<ExprNode> parseExprNode(){
-		// TODO Auto-generated method stub
-		return null;
-	}
-	
-	private <T extends Node> MultiNode<T> oneOrMoreParse(String string, Supplier<T> sups){
-		MultiNode<T> toReturn = new MultiNode<T>(new Token(TokenType.MULTI, string));
+	private Optional<FunCallStmtNode> parseFunCallStmt(){
+		int temp = pointer;
 		try {
-			T sup = sups.get();
-			toReturn.add(sup);
-		} catch (Exception e) {}
+			FunCallNode funcall = parseFunCall().get();
+			Token semi = eat(TokenType.SEMICOLON).get();
+			return of(new FunCallStmtNode(semi, funcall));
+		} catch(Exception e) {pointer = temp;}
+		return empty();
+	}
+	
+	private Optional<ReturnStmtNode> parseReturnStmt(){
+		int temp = pointer;
+		try {
+			Token rtrn = eat(TokenType.RETURN).get();
+			Optional<TypeNode> oExpr = parseExpr();
+			Token semi = eat(TokenType.SEMICOLON).get();
+			return of(new ReturnStmtNode(rtrn, oExpr));
+		} catch(Exception e) {pointer = temp;}
+		return empty();
+	}
+	
+	private Optional<FunCallNode> parseFunCall(){
+		int temp = pointer;
+		try {
+			Token id = eat(TokenType.ID).get();
+			Token roundO = eat(TokenType.ROUNDBRACKETOPEN).get();
+			MultiNode<TypeNode> actargs = zeroOrMoreParse("ACTARGS", ()->parseExpr().get(), ()->eat(TokenType.COMMA));
+			Token roundC = eat(TokenType.ROUNDBRACKETCLOSE).get();
+			return of(new FunCallNode(id, actargs));
+		} catch(Exception e) {pointer = temp;}
+		return empty();
+	}
+
+	private Optional<TypeNode> parseExpr(){
+		int temp = pointer;
+		try {
+			TypeNode expr1 = parseExpr1().get();
+			Token colon = eat(TokenType.COLON).get();
+			TypeNode expr2 = parseExpr().get();
+			return of(new BinaryOperatorNode(colon, expr1, expr2));
+		}	catch(Exception e) {pointer = temp;}
+		return parseExpr1();
+	}
+	/**
+	 * Expr1 = Expr2 ('||' Expr2)*
+	 * @return
+	 */
+	private Optional<TypeNode> parseExpr1(){
+		return leftAssociative(()->parseExpr2(), ()->eat(TokenType.OR));
+	}
+	
+	private Optional<TypeNode> parseExpr2(){
+		return leftAssociative(()->parseExpr3(), ()->eat(TokenType.AND));
+	}
+	
+	private Optional<TypeNode> parseExpr3(){
+		return leftAssociative(()->parseExpr4(), ()->eat(TokenType.INEQUALS, TokenType.EQUALS));
+	}
+	
+	private Optional<TypeNode> parseExpr4(){
+		return leftAssociative(()->parseExpr5(), ()->eat(TokenType.SMALLEREQUALS, TokenType.SMALLER, TokenType.BIGGER, TokenType.BIGGEREQUALS));
+	}
+	
+	private Optional<TypeNode> parseExpr5(){
+		return leftAssociative(()->parseExpr6(), ()->eat(TokenType.PLUS, TokenType.MINUS));
+	}
+	
+	private Optional<TypeNode> parseExpr6(){
+		return leftAssociative(()->parseExpr7(), ()->eat(TokenType.MULTIPLY, TokenType.MODULO, TokenType.DIVIDE));
+	}
+	
+	private Optional<TypeNode> parseExpr7(){
+		int temp = pointer;
+		try {
+			Token negate = eat(TokenType.MINUS, TokenType.EXCLAMATION).get();
+			TypeNode expr7 = parseExpr7().get();
+			return of(new UnaryOperatorNode(negate, expr7));
+		} catch(Exception e) {pointer = temp;}
+		return parseExpr8();
+	}
+	
+	private Optional<TypeNode> parseExpr8(){
+		int temp = pointer;
+		try {
+			TypeNode base = parseBaseExpr().get();
+			for(Optional<GrammarToken> dot = eat(TokenType.DOT); dot.isPresent(); dot = eat(TokenType.DOT)) {
+				Token func = eat(TokenType.TL, TokenType.HD, TokenType.SND, TokenType.FST).get();
+				UnaryOperatorNode uon = new UnaryOperatorNode(func, base);
+				base = uon;
+			}
+			return of(base);
+		} catch(Exception e) {pointer = temp;}
+		return empty();
+	}
+	
+	private Optional<TypeNode> parseBaseExpr(){
+		int temp = pointer;
+		try {
+			ValueNode vn = parseValueExpr().get();
+			return of(vn);
+		} catch(Exception e) {pointer = temp;}
+		try {
+			Token rbo = eat(TokenType.ROUNDBRACKETOPEN).get();
+			TypeNode tn = parseExpr().get();
+			Token rbc = eat(TokenType.ROUNDBRACKETCLOSE).get();
+			return of(tn);
+		} catch(Exception e) {pointer = temp;}
+		try {
+			Token rbo = eat(TokenType.ROUNDBRACKETOPEN).get();
+			TypeNode tn1 = parseExpr().get();
+			Token c = eat(TokenType.COMMA).get();
+			TypeNode tn2 = parseExpr().get();
+			Token rbc = eat(TokenType.ROUNDBRACKETCLOSE).get();
+			return of(new TupleTypeNode(tn1, tn2));
+		} catch(Exception e) {pointer = temp;}
+		try {
+			FunCallNode fcn = parseFunCall().get();
+			return of(fcn);
+		} catch(Exception e) {pointer = temp;}
+		try {
+			Token id = eat(TokenType.ID).get();
+			return of(new IDNode(id));
+		} catch(Exception e) {pointer = temp;}
+		return empty();
+	}
+	
+	private Optional<ValueNode> parseValueExpr(){
+		int temp = pointer;
+		try {
+			Token value = eat(TokenType.INTVALUE, TokenType.BOOLVALUE, TokenType.EMPTYLIST).get();
+			return of(new ValueNode(value));
+		} catch(Exception e) {pointer = temp;}
+		return empty();
+	}
+	
+	private Optional<TypeNode> leftAssociative(Supplier<Optional<TypeNode>> child, Supplier<Optional<GrammarToken>> operator) {
+		int temp = pointer;
+		try {
+			TypeNode left = child.get().get();
+			for(Optional<GrammarToken> o = operator.get(); o.isPresent(); o = operator.get()) {
+				TypeNode right = child.get().get();
+				BinaryOperatorNode bon = new BinaryOperatorNode(o.get(), left, right);
+				left = bon;
+			}
+			return of(left);
+		} catch(Exception e) { pointer = temp;}
+		return empty();
+	}
+
+	private <T extends Node> MultiNode<T> zeroOrMoreParse(String name, Supplier<T> sups, Supplier<Optional>... delimiters){
+		MultiNode<T> toReturn = new MultiNode<T>(new Token(TokenType.MULTI, name));
+		int temp = pointer;
+		try {
+			T first = sups.get();
+			toReturn.add(first);
+			while(delimiters.length == 0 || delimiters[0].get().isPresent()) {
+				temp = pointer;
+				for(int i = 1; i < delimiters.length; i++)
+					delimiters[i].get().get();
+				T sequential = sups.get();
+				toReturn.add(sequential);
+			}
+		} catch(Exception e) {pointer = temp;}
 		return toReturn;
 	}
+	
 	
 	private Optional<GrammarToken> eat(TokenType... type){
 		Optional<TokenType> tt = Arrays.stream(type).filter(t->tokens.get(pointer).getTokenType() == t).findFirst();
 		if(tt.isPresent()) {
-			return Optional.of(tokens.get(pointer++));
-		} else return Optional.empty();
+			return of(tokens.get(pointer++));
+		} else return empty();
 	}
 	
 	private Exception parserException(String s){

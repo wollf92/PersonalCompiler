@@ -1,10 +1,12 @@
 package parser.node;
+import java.util.Optional;
+
 import Tokenizer.Token;
 
 public class ReturnStmtNode extends Node{
-
-	public ReturnStmtNode(Token token, Node[] nodes){
-		super(token, nodes);
+	private Optional<TypeNode> expr;
+	public ReturnStmtNode(Token rtrn, Optional<TypeNode> expr){
+		super(rtrn, expr.orElse(null));
+		this.expr = expr;
 	}
-
 }

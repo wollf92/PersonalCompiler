@@ -1,21 +1,24 @@
 package parser.node;
 
+import java.util.Optional;
+
 import Tokenizer.Token;
 
-public class BinaryOperator extends TypeNode{
+public class BinaryOperatorNode extends TypeNode{
 	private TypeNode left, right;
-	public BinaryOperator(Token t, TypeNode left, TypeNode right){
+	public BinaryOperatorNode(Token t, TypeNode left, TypeNode right){
 		super(t, left, right);
 		this.left = left;
 		this.right = right;
 	}
 	
+	@Override 
 	public TypeNode getType() {
 		TypeNode leftType = left.getType();
 		TypeNode rightType = right.getType();
 		switch(getToken().getTokenType()) {
 			case COLON: 
-				if(rightType instanceof EmptyListValueNode) {
+				if(rightType instanceof ValueNode ) {
 					return new ListTypeNode(leftType);
 				} else if(rightType instanceof ListTypeNode) {
 					if(leftType.equals(((ListTypeNode)rightType).getListType())) {
@@ -26,19 +29,8 @@ public class BinaryOperator extends TypeNode{
 				} else {
 					return null;
 				}
-			case MINUS:
-				if(leftType instanceof IntegerTypeNode && rightType instanceof IntegerTypeNode) {
-					return leftType;
-				} else {
-					return null;
-				}
-			case EQUALS:
-				if(leftType.equals(rightType)) {
-					return new BooleanType();
-				} else {
-					return null;
-				}
 		}
+		return null;
 	}
 
 }

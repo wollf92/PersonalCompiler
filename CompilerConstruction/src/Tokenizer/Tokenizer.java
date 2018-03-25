@@ -77,9 +77,9 @@ public class Tokenizer extends StreamTokenizer{
 			case "snd":		return TokenType.SND;
 			case "False": return TokenType.BOOLVALUE;
 			case "True":	return TokenType.BOOLVALUE;
-			case "print":	return TokenType.PRINT;
-			case "isEmpty":return TokenType.ISEMPTY;
-			case "read":	return TokenType.READ;
+			//case "print":	return TokenType.PRINT;
+			//case "isEmpty":return TokenType.ISEMPTY;
+			//case "read":	return TokenType.READ;
 			case "(":			return TokenType.ROUNDBRACKETOPEN;
 			case ")":			return TokenType.ROUNDBRACKETCLOSE;
 			case "{":			return TokenType.CURLYBRACKETOPEN;
@@ -96,6 +96,8 @@ public class Tokenizer extends StreamTokenizer{
 			case ";":			return TokenType.SEMICOLON;
 			case ":":			return TokenType.COLON;
 			case ",":			return TokenType.COMMA;
+			case ".":			return TokenType.DOT;
+			case "!":			return TokenType.EXCLAMATION;
 			case "->":		return TokenType.ARROW;
 			case "[]":		return TokenType.EMPTYLIST;
 			case "::":		return TokenType.DOUBLECOLON;

@@ -6,7 +6,7 @@ public class IDNode extends TypeNode{
 	public IDNode(Token id) {
 		super(id);
 	}
-	public TypedNode getType(){
+	public TypeNode getType(){
 		return null;
 	}
 }
